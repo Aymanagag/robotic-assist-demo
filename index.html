@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robotic Assist</title>
+<style>
+:root{--navy:#142b4a;--blue:#2563eb;--bg:#f3f6fb;--green:#16845b;--red:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:#203047}
+header{background:var(--navy);color:white;padding:22px 18px}
+header h1{margin:0;font-size:25px}
+header p{margin:6px 0 0;color:#cbd8e8;font-size:13px}
+nav{display:flex;background:white;border-bottom:1px solid #ddd;overflow-x:auto}
+nav button{border:0;background:white;padding:15px 17px;font-size:14px;white-space:nowrap;color:#344}
+nav button.active{color:var(--blue);border-bottom:3px solid var(--blue);font-weight:bold}
+main{max-width:1050px;margin:auto;padding:18px}
+.panel{display:none}.panel.active{display:block}
+h2{font-size:21px;margin:8px 0 16px}
+h3{font-size:16px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:13px}
+.card{background:white;border-radius:12px;padding:17px;margin-bottom:15px;box-shadow:0 2px 8px #172b4a0c}
+.stat{font-size:28px;font-weight:bold;color:var(--blue)}
+.muted{color:#718096;font-size:13px}
+label{display:block;font-size:13px;font-weight:bold;margin:12px 0 5px}
+input,select{width:100%;padding:11px;border:1px solid #ccd5e1;border-radius:7px;background:white;font-size:15px}
+button.action{background:var(--blue);color:white;border:0;border-radius:7px;padding:11px 15px;margin-top:12px;font-weight:bold}
+button.secondary{background:#e9eff8;color:var(--navy);border:0;border-radius:7px;padding:9px 12px;margin:4px}
+button.danger{background:#fff0ed;color:var(--red);border:0;border-radius:7px;padding:9px 12px;margin:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:10px 7px;border-bottom:1px solid #e8edf3}
+th{color:#63748a}
+.tablewrap{overflow-x:auto}
+.tag{display:inline-block;padding:5px 8px;border-radius:20px;background:#e8efff;color:#2455a5;font-size:11px;font-weight:bold}
+.good{background:#e1f5eb;color:#16734d}
+.bad{background:#ffe9e6;color:#b32e23}
+.warning{background:#fff5dc;color:#805900;padding:11px;border-radius:8px;font-size:13px;margin-top:10px}
+.empty{padding:20px;color:#718096;text-align:center}
+.small{font-size:12px;color:#718096}
+hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
+@media(max-width:600px){main{padding:12px}.card{padding:14px}th,td{min-width:95px}}
+</style>
+</head>
+<body>
+<header>
+<h1>🤖 Robotic Assist</h1>
+<p>Surgical Assistant Availability & Case Allocation</p>
+</header>
+<nav>
+<button class="active" onclick="show('admin',this)">Administrator</button>
+<button onclick="show('assistant',this)">Assistant Portal</button>
+<button onclick="show('cases',this)">All Cases</button>
+</nav>
+<main>
+
+<section id="admin" class="panel active">
+<h2>Administrator Dashboard</h2>
+<div class="grid">
+<div class="card"><div class="muted">Total cases</div><div class="stat" id="total">0</div></div>
+<div class="card"><div class="muted">Unmatched cases</div><div class="stat" id="unmatched">0</div></div>
+<div class="card"><div class="muted">Awaiting acceptance</div><div class="stat" id="invited">0</div></div>
+<div class="card"><div class="muted">Confirmed cases</div><div class="stat" id="confirmed">0</div></div>
+</div>
+
+<div class="card">
+<h3>Register a surgical case</h3>
+<form id="caseForm">
+<label>Hospital</label><select id="hospital" required></select>
+<label>Procedure</label><select id="procedure" required></select>
+<label>Surgeon</label><select id="surgeon" required></select>
+<label>Date</label><input type="date" id="date" required>
+<div class="grid">
+<div><label>Start time</label><input type="time" id="start" required></div>
+<div><label>Finish time</label><input type="time" id="finish" required></div>
+</div>
+<label>Robotic platform</label>
+<select id="platform"><option>Da Vinci Xi</option><option>Da Vinci X</option><option>Da Vinci SP</option><option>Hugo</option><option>Versius</option></select>
+<label>Assistant required</label>
+<select disabled><option>Surgical Assistant</option></select>
+<button class="action" type="submit">Register case</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Manage master lists</h3>
+<p class="muted">Add hospitals, procedures and surgeons for future cases.</p>
+<div class="grid">
+<div><label>New hospital</label><input id="newHospital" placeholder="Hospital name"><button class="secondary" onclick="addMaster('hospitals','newHospital')">Add hospital</button></div>
+<div><label>New procedure</label><input id="newProcedure" placeholder="Procedure name"><button class="secondary" onclick="addMaster('procedures','newProcedure')">Add procedure</button></div>
+<div><label>New surgeon</label><input id="newSurgeon" placeholder="Surgeon name"><button class="secondary" onclick="addMaster('surgeons','newSurgeon')">Add surgeon</button></div>
+</div>
+</div>
+
+<div class="card">
+<h3>Unmatched cases — require an assistant</h3>
+<div id="unmatchedList"></div>
+</div>
+
+<div class="card">
+<h3>Matched — awaiting assistant acceptance</h3>
+<div id="invitedList"></div>
+</div>
+
+<div class="card">
+<h3>Assistant availability overview</h3>
+<div id="availabilityOverview"></div>
+</div>
+</section>
+
+<section id="assistant" class="panel">
+<h2>Surgical Assistant Portal</h2>
+<div class="card">
+<h3>Select demo assistant</h3>
+<p class="muted">In this prototype, select an assistant to simulate their individual portal. Real accounts and private access will be added in the live application.</p>
+<select id="assistantSelect" onchange="renderAssistant()"></select>
+</div>
+
+<div class="card">
+<h3>Submit or update availability</h3>
+<label>Availability date</label><input type="date" id="availDate">
+<label>Availability type</label>
+<select id="availType" onchange="toggleHours()"><option value="full">Available all day</option><option value="hours">Available specific hours</option><option value="unavailable">Unavailable</option></select>
+<div id="hours">
+<label>Available from</label><input type="time" id="availStart" value="08:00">
+<label>Available until</label><input type="time" id="availFinish" value="18:00">
+</div>
+<button class="action" onclick="saveAvailability()">Submit availability</button>
+<hr>
+<h3>My submitted availability</h3>
+<div id="myAvailability"></div>
+</div>
+
+<div class="card">
+<h3>My case invitations and assignments</h3>
+<div id="myInvitations"></div>
+</div>
+</section>
+
+<section id="cases" class="panel">
+<h2>All Surgical Cases</h2>
+<div class="card">
+<div id="allCases"></div>
+</div>
+</section>
+</main>
+
+<script>
+const defaults={
+hospitals:["Frimley Park Hospital","Heatherwood Hospital","Royal Surrey County Hospital"],
+procedures:["Robotic prostatectomy","Robotic partial nephrectomy","Robotic cystectomy","Robotic hysterectomy"],
+surgeons:["Dr Smith","Mr Jones","Mr Brown"]
+};
+let data;
+try{data=JSON.parse(localStorage.getItem("roboticAssistDemo"))}catch(e){}
+if(!data){
+data={
+...defaults,
+assistants:[
+{id:1,name:"Dr Ahmed",platforms:["Da Vinci Xi","Da Vinci X"],availability:[]},
+{id:2,name:"Alex Morgan",platforms:["Da Vinci Xi","Hugo"],availability:[]},
+{id:3,name:"Sam Taylor",platforms:["Versius","Da Vinci SP"],availability:[]}
+],
+cases:[]
+};
+}
+function save(){localStorage.setItem("roboticAssistDemo",JSON.stringify(data));render()}
+function show(id,btn){
+document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+btn.classList.add("active");
+render();
+}
+function options(id,items){
+let el=document.getElementById(id);
+el.innerHTML=items.map(x=>`<option>${esc(x)}</option>`).join("");
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function addMaster(type,inputId){
+let el=document.getElementById(inputId),v=el.value.trim();
+if(!v)return alert("Please enter a name.");
+if(!data[type].includes(v))data[type].push(v);
+el.value="";save();
+}
+function render(){
+options("hospital",data.hospitals);
+options("procedure",data.procedures);
+options("surgeon",data.surgeons);
+document.getElementById("assistantSelect").innerHTML=data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("");
+document.getElementById("total").textContent=data.cases.length;
+document.getElementById("unmatched").textContent=data.cases.filter(c=>c.status==="Unmatched").length;
+document.getElementById("invited").textContent=data.cases.filter(c=>c.status==="Invited").length;
+document.getElementById("confirmed").textContent=data.cases.filter(c=>c.status==="Confirmed").length;
+document.getElementById("unmatchedList").innerHTML=caseList("Unmatched");
+document.getElementById("invitedList").innerHTML=caseList("Invited");
+document.getElementById("allCases").innerHTML=allCaseList();
+document.getElementById("availabilityOverview").innerHTML=availabilityList();
+renderAssistant();
+}
+function caseList(status){
+let list=data.cases.filter(c=>c.status===status);
+if(!list.length)return '<div class="empty">No cases in this section.</div>';
+return list.map(c=>`<div class="card">
+<strong>${esc(c.procedure)}</strong><br><span class="muted">${esc(c.hospital)} · ${esc(c.date)} · ${c.start}-${c.finish}</span>
+<p class="small">Surgeon: ${esc(c.surgeon)} · ${esc(c.platform)}</p>
+${status==="Unmatched"?`<label>Allocate assistant</label><select id="assign${c.id}">${data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select><button class="action" onclick="invite(${c.id})">Invite assistant</button>`:`<span class="tag">Awaiting acceptance: ${esc(nameOf(c.assistant))}</span>`}
+</div>`).join("");
+}
+function nameOf(id){let a=data.assistants.find(x=>x.id==id);return a?a.name:"Not assigned"}
+function available(a,c){
+return a.availability.some(v=>v.date===c.date&&(v.type==="full"||(v.type==="hours"&&v.start<=c.start&&v.finish>=c.finish)));
+}
+function invite(id){
+let c=data.cases.find(x=>x.id===id),aid=document.getElementById("assign"+id).value,a=data.assistants.find(x=>x.id==aid);
+if(!c||!a)return;
+let free=available(a,c),platform=a.platforms.includes(c.platform);
+let conflicts=data.cases.filter(x=>x.id!==c.id&&x.assistant==aid&&x.date===c.date&&(x.status==="Invited"||x.status==="Confirmed")&&x.start<c.finish&&x.finish>c.start);
+let message=[];
+if(!free)message.push("This assistant has not submitted matching availability for this date and time.");
+if(!platform)message.push("This assistant has not listed experience with "+c.platform+".");
+if(conflicts.length)message.push("WARNING: This assistant has another allocated case during this time.");
+if(message.length&&!confirm(message.join("\n\n")+"\n\nDo you want to proceed with this allocation?"))return;
+if(conflicts.length&&!confirm("This creates an overlapping allocation. Are you absolutely sure?"))return;
+c.assistant=aid;c.status="Invited";save();
+alert("Invitation sent. The case is now awaiting assistant acceptance.");
+}
+function allCaseList(){
+if(!data.cases.length)return '<div class="empty">No cases registered yet.</div>';
+return '<div class="tablewrap"><table><tr><th>Case</th><th>Date/time</th><th>Hospital</th><th>Assistant</th><th>Status</th></tr>'+data.cases.map(c=>`<tr><td>${esc(c.procedure)}</td><td>${c.date}<br>${c.start}-${c.finish}</td><td>${esc(c.hospital)}</td><td>${esc(nameOf(c.assistant))}</td><td><span class="tag ${c.status==="Confirmed"?"good":c.status==="Unmatched"?"bad":""}">${c.status}</span></td></tr>`).join("")+'</table></div>';
+}
+function availabilityList(){
+return data.assistants.map(a=>`<p><strong>${esc(a.name)}</strong> — ${a.availability.length} availability entries<br><span class="small">Platforms: ${a.platforms.map(esc).join(", ")}</span></p>`).join("<hr>");
+}
+function toggleHours(){document.getElementById("hours").style.display=document.getElementById("availType").value==="hours"?"block":"none"}
+function saveAvailability(){
+let a=data.assistants.find(x=>x.id==document.getElementById("assistantSelect").value);
+let date=document.getElementById("availDate").value,type=document.getElementById("availType").value;
+let start=document.getElementById("availStart").value,finish=document.getElementById("availFinish").value;
+if(!date)return alert("Please select a date.");
+if(type==="hours"&&(!start||!finish||start>=finish))return alert("Please enter a valid time window.");
+a.availability=a.availability.filter(x=>x.date!==date);
+a.availability.push({date,type,start,finish});
+save();alert("Availability saved.");
+}
+function renderAssistant(){
+let id=document.getElementById("assistantSelect").value;
+let a=data.assistants.find(x=>x.id==id);
+if(!a)return;
+document.getElementById("myAvailability").innerHTML=a.availability.length?a.availability.map(v=>`<p>${v.date}: <strong>${v.type==="full"?"Available all day":v.type==="unavailable"?"Unavailable":v.start+" to "+v.finish}</strong> <button class="danger" onclick="removeAvailability(${a.id},'${v.date}')">Remove</button></p>`).join(""):'<div class="empty">No availability submitted.</div>';
+let cases=data.cases.filter(c=>c.assistant==id&&(c.status==="Invited"||c.status==="Confirmed"));
+document.getElementById("myInvitations").innerHTML=cases.length?cases.map(c=>`<div class="card"><strong>${esc(c.procedure)}</strong><p>${esc(c.hospital)} · ${c.date} · ${c.start}-${c.finish}</p><p class="small">Surgeon: ${esc(c.surgeon)} · ${esc(c.platform)}</p>${c.status==="Invited"?`<button class="action" onclick="respond(${c.id},'Confirmed')">Accept invitation</button><button class="danger" onclick="respond(${c.id},'Declined')">Decline invitation</button>`:'<span class="tag good">Confirmed</span>'}</div>`).join(""):'<div class="empty">No invitations or assignments.</div>';
+}
+function removeAvailability(aid,date){
+let a=data.assistants.find(x=>x.id==aid);a.availability=a.availability.filter(v=>v.date!==date);save();
+}
+function respond(id,response){
+let c=data.cases.find(x=>x.id===id);
+if(response==="Declined"){c.status="Unmatched";c.assistant=null;}
+else c.status="Confirmed";
+save();alert(response==="Confirmed"?"Booking confirmed.":"Invitation declined. Case returned to unmatched queue.");
+}
+document.getElementById("caseForm").addEventListener("submit",e=>{
+e.preventDefault();
+let start=document.getElementById("start").value,finish=document.getElementById("finish").value;
+if(start>=finish)return alert("Finish time must be after start time.");
+data.cases.push({
+id:Date.now(),hospital:document.getElementById("hospital").value,
+procedure:document.getElementById("procedure").value,
+surgeon:document.getElementById("surgeon").value,
+date:document.getElementById("date").value,start,finish,
+platform:document.getElementById("platform").value,
+status:"Unmatched",assistant:null
+});
+e.target.reset();save();alert("Case registered and added to the unmatched queue.");
+});
+render();
+</script>
+</body>
+</html>
