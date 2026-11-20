@@ -405,6 +405,38 @@ async function loadMyAssistant() {
   document.getElementById("assistantAccountName").textContent =
     assistant.profile?.full_name || "Assistant";
 }
+  async function loadMyInvitations() {
+  try {
+    const { data: invitations, error } = await supabaseClient
+      .from("invitations")
+      .select(`
+        id,
+        status,
+        surgical_cases (
+          id,
+          case_date,
+          start_time,
+          finish_time,
+          status,
+          hospitals (name),
+          procedures (name),
+          surgeons (name)
+        )
+      `)
+      .eq("assistant_id", currentAssistantId)
+      .in("status", ["pending", "accepted"]);
+
+    if (error) throw error;
+
+    data.myInvitations = invitations || [];
+
+    renderAssistant();
+
+  } catch (error) {
+    console.error("Could not load invitations:", error);
+    alert("Could not load your invitations: " + error.message);
+  }
+}
   async function loadCases() {
   try {
     const { data: cases, error } = await supabaseClient
