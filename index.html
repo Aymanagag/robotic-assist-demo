@@ -352,8 +352,18 @@ async function addMaster(type, inputId) {
   const { error } = await supabaseClient
     .from(table)
     .insert({ name: name });
- document.getElementById("editCaseForm").addEventListener("submit", async (e) => {
-  alert("Edit form submitted");
+
+  if (error) {
+    alert("Could not save: " + error.message);
+    return;
+  }
+
+  el.value = "";
+  await loadMasterLists();
+
+  alert("Added successfully.");
+}
+  document.getElementById("editCaseForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const button = e.target.querySelector('button[type="submit"]');
@@ -392,16 +402,6 @@ async function addMaster(type, inputId) {
   }
 });
 
-  if (error) {
-    alert("Could not save: " + error.message);
-    return;
-  }
-
-  el.value = "";
-  await loadMasterLists();
-
-  alert("Added successfully.");
-}
   // LOAD MASTER LISTS FROM SUPABASE
 async function loadMasterLists() {
   try {
