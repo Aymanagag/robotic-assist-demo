@@ -437,6 +437,42 @@ async function loadMyAssistant() {
     alert("Could not load your invitations: " + error.message);
   }
 }
+  } // End of loadMyInvitations()
+
+
+// Add the new function below this line
+async function respondToInvitation(invitationId, response) {
+  try {
+    const action = response === "accepted" ? "accept" : "decline";
+
+    if (!confirm(`Are you sure you want to ${action} this invitation?`)) {
+      return;
+    }
+
+    const { error } = await supabaseClient.rpc(
+      "respond_to_invitation",
+      {
+        p_invitation_id: invitationId,
+        p_response: response,
+        p_response_note: null
+      }
+    );
+
+    if (error) throw error;
+
+    alert(
+      response === "accepted"
+        ? "Booking accepted successfully."
+        : "Invitation declined."
+    );
+
+    await loadMyInvitations();
+
+  } catch (error) {
+    alert("Could not process your response: " + error.message);
+    console.error(error);
+  }
+}
   async function loadCases() {
   try {
     const { data: cases, error } = await supabaseClient
