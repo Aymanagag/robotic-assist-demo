@@ -489,12 +489,15 @@ async function respondToInvitation(invitationId, response) {
     console.error(error);
   }
 }
-  async function loadCases() {
+ async function loadCases() {
   try {
     const { data: cases, error } = await supabaseClient
       .from("surgical_cases")
       .select(`
         id,
+        hospital_id,
+        procedure_id,
+        surgeon_id,
         case_date,
         start_time,
         finish_time,
@@ -510,6 +513,9 @@ async function respondToInvitation(invitationId, response) {
 
     data.cases = cases.map(c => ({
       id: c.id,
+      hospitalId: c.hospital_id,
+      procedureId: c.procedure_id,
+      surgeonId: c.surgeon_id,
       date: c.case_date,
       start: c.start_time,
       finish: c.finish_time,
@@ -517,7 +523,7 @@ async function respondToInvitation(invitationId, response) {
       assistant: c.assistant_id,
       hospital: c.hospital?.name || "",
       procedure: c.procedure?.name || "",
-      surgeon: c.surgeon?.name || "",
+      surgeon: c.surgeon?.name || ""
     }));
 
     render();
