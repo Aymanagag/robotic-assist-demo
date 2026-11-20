@@ -437,10 +437,7 @@ async function loadMyAssistant() {
     alert("Could not load your invitations: " + error.message);
   }
 }
-  } // End of loadMyInvitations()
 
-
-// Add the new function below this line
 async function respondToInvitation(invitationId, response) {
   try {
     const action = response === "accepted" ? "accept" : "decline";
