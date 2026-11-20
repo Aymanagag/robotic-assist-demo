@@ -246,13 +246,78 @@ let el=document.getElementById(id);
 el.innerHTML=items.map(x=>`<option>${esc(x)}</option>`).join("");
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function addMaster(type,inputId){
-let el=document.getElementById(inputId),v=el.value.trim();
-if(!v)return alert("Please enter a name.");
-if(!data[type].includes(v))data[type].push(v);
-el.value="";save();
+async function addMaster(type, inputId) {
+  const tableMap = {
+    hospitals: "hospitals",
+    procedures: "procedures",
+    surgeons: "surgeons"
+  };
+
+  const table = tableMap[type];
+  const el = document.getElementById(inputId);
+  const name = el.value.trim();
+
+  if (!name) {
+    alert("Please enter a name.");
+    return;
+  }
+
+  if (!table) {
+    alert("Invalid master list.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from(table)
+    .insert({ name: name });
+
+  if (error) {
+    alert("Could not save: " + error.message);
+    return;
+  }
+
+  el.value = "";
+  await loadMasterLists();
+
+  alert("Added successfully.");
 }
-function render(){
+  // LOAD MASTER LISTS FROM SUPABASE
+async function loadMasterLists() {
+  try {
+    const [hospitalsResult, proceduresResult, surgeonsResult] =
+      await Promise.all([
+        supabaseClient.from("hospitals")
+          .select("id,name")
+          .eq("active", true)
+          .order("name"),
+
+        supabaseClient.from("procedures")
+          .select("id,name")
+          .eq("active", true)
+          .order("name"),
+
+        supabaseClient.from("surgeons")
+          .select("id,name")
+          .eq("active", true)
+          .order("name")
+      ]);
+
+    if (hospitalsResult.error) throw hospitalsResult.error;
+    if (proceduresResult.error) throw proceduresResult.error;
+    if (surgeonsResult.error) throw surgeonsResult.error;
+
+    data.hospitals = hospitalsResult.data.map(x => x.name);
+    data.procedures = proceduresResult.data.map(x => x.name);
+    data.surgeons = surgeonsResult.data.map(x => x.name);
+
+    render();
+
+  } catch (error) {
+    alert("Could not load master lists: " + error.message);
+    console.error(error);
+  }
+}
+  function render(){
 options("hospital",data.hospitals);
 options("procedure",data.procedures);
 options("surgeon",data.surgeons);
@@ -363,6 +428,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
       throw new Error("The assistant portal is not connected yet. Please use an administrator account during setup.");
     }
 
+    await loadMasterLists();
     document.getElementById("loginScreen").style.display = "none";
 
     alert("Welcome, " + profile.full_name + ". Administrator login successful.");
@@ -394,6 +460,7 @@ async function restoreAdminSession() {
     if (profileError) throw profileError;
 
     if (profile.role === "admin") {
+      await loadMasterLists();
       document.getElementById("loginScreen").style.display = "none";
     } else {
       await supabaseClient.auth.signOut();
