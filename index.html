@@ -463,7 +463,7 @@ if(!list.length)return '<div class="empty">No cases in this section.</div>';
 return list.map(c=>`<div class="card">
 <strong>${esc(c.procedure)}</strong><br><span class="muted">${esc(c.hospital)} · ${esc(c.date)} · ${c.start}-${c.finish}</span>
 <p class="small">Surgeon: ${esc(c.surgeon)}</p>
-${status==="Unmatched"?`<label>Allocate assistant</label><select id="assign${c.id}">${data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select><button class="action" onclick="invite(${c.id})">Invite assistant</button>`:`<span class="tag">Awaiting acceptance: ${esc(nameOf(c.assistant))}</span>`}
+${status==="Unmatched"?`<label>Allocate assistant</label><select id="assign${c.id}">${data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select><button class="action" onclick="invite('${esc(c.id)}')">Invite assistant</button>`:`<span class="tag">Awaiting acceptance: ${esc(nameOf(c.assistant))}</span>`}
 </div>`).join("");
 }
 function nameOf(id){let a=data.assistants.find(x=>x.id==id);return a?a.name:"Not assigned"}
