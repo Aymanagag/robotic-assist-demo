@@ -43,6 +43,65 @@ hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
 </style>
 </head>
 <body>
+  <div id="loginScreen" style="
+position:fixed;
+inset:0;
+z-index:9999;
+background:#f3f6fb;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px;
+">
+  <div style="
+  background:white;
+  padding:30px;
+  border-radius:14px;
+  width:100%;
+  max-width:400px;
+  box-shadow:0 4px 20px #0002;
+  ">
+    <h2 style="color:#142b4a;text-align:center">
+      🤖 Robotic Assist
+    </h2>
+
+    <p style="text-align:center;color:#718096">
+      Sign in to your account
+    </p>
+
+    <form id="loginForm">
+      <label>Email address</label>
+      <input
+        type="email"
+        id="loginEmail"
+        required
+        autocomplete="username"
+        placeholder="Enter your email"
+      >
+
+      <label>Password</label>
+      <input
+        type="password"
+        id="loginPassword"
+        required
+        autocomplete="current-password"
+        placeholder="Enter your password"
+      >
+
+      <button
+        type="submit"
+        class="action"
+        style="width:100%"
+        id="loginButton"
+      >
+        Sign in
+      </button>
+
+      <p id="loginError"
+      style="color:#c0392b;font-size:13px"></p>
+    </form>
+  </div>
+</div>
 <header>
 <h1>🤖 Robotic Assist</h1>
 <p>Surgical Assistant Availability & Case Allocation</p>
@@ -270,7 +329,52 @@ if(response==="Declined"){c.status="Unmatched";c.assistant=null;}
 else c.status="Confirmed";
 save();alert(response==="Confirmed"?"Booking confirmed.":"Invitation declined. Case returned to unmatched queue.");
 }
-document.getElementById("caseForm").addEventListener("submit",e=>{
+// SUPABASE AUTHENTICATION
+document.getElementById("loginForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+
+  const button = document.getElementById("loginButton");
+  const errorBox = document.getElementById("loginError");
+
+  button.disabled = true;
+  button.textContent = "Signing in...";
+  errorBox.textContent = "";
+
+  try {
+    const { data: loginData, error: loginError } =
+      await supabaseClient.auth.signInWithPassword({
+        email: document.getElementById("loginEmail").value.trim(),
+        password: document.getElementById("loginPassword").value
+      });
+
+    if (loginError) throw loginError;
+
+    const { data: profile, error: profileError } =
+      await supabaseClient
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", loginData.user.id)
+        .single();
+
+    if (profileError) throw profileError;
+
+    if (profile.role !== "admin") {
+      await supabaseClient.auth.signOut();
+      throw new Error("The assistant portal is not connected yet. Please use an administrator account during setup.");
+    }
+
+    document.getElementById("loginScreen").style.display = "none";
+
+    alert("Welcome, " + profile.full_name + ". Administrator login successful.");
+
+  } catch (error) {
+    errorBox.textContent = error.message;
+  }
+
+  button.disabled = false;
+  button.textContent = "Sign in";
+});
+  document.getElementById("caseForm").addEventListener("submit",e=>{
 e.preventDefault();
 let start=document.getElementById("start").value,finish=document.getElementById("finish").value;
 if(start>=finish)return alert("Finish time must be after start time.");
