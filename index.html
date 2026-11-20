@@ -353,6 +353,7 @@ async function addMaster(type, inputId) {
     .from(table)
     .insert({ name: name });
  document.getElementById("editCaseForm").addEventListener("submit", async (e) => {
+  alert("Edit form submitted");
   e.preventDefault();
 
   const button = e.target.querySelector('button[type="submit"]');
