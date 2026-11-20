@@ -147,6 +147,15 @@ hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
   
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL = "https://cnoyvhmtorlnkunnisvl.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3OWjvkBKEFwakb5OZSuJZA_Gz_pMpuS";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
 const defaults={
 hospitals:["Frimley Park Hospital","Heatherwood Hospital","Royal Surrey County Hospital"],
 procedures:["Robotic prostatectomy","Robotic partial nephrectomy","Robotic cystectomy","Robotic hysterectomy"],
