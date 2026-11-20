@@ -148,6 +148,36 @@ hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
   border-radius: 3px;
   display: inline-block;
 }
+ .month-calendar {
+  table-layout: fixed;
+  min-width: 1000px;
+}
+
+.month-calendar th {
+  text-align: center;
+  padding: 12px 5px;
+}
+
+.month-calendar td {
+  height: 125px;
+  width: 14.28%;
+  text-align: left;
+  vertical-align: top;
+  padding: 6px;
+  background: #FFFFFF;
+}
+
+.month-calendar td strong {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 14px;
+}
+
+.month-calendar .calendar-event {
+  font-size: 10px;
+  padding: 4px;
+  margin-bottom: 3px;
+}
 </style>
 </head>
 <body>
@@ -734,18 +764,28 @@ async function loadMasterCalendar() {
       d.setDate(start.getDate() + i);
       dates.push(d.toISOString().slice(0, 10));
     }
-  } else {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const days = new Date(year, month + 1, 0).getDate();
+} else {
+  const year = date.getFullYear();
+  const month = date.getMonth();
 
-    for (let i = 1; i <= days; i++) {
-      dates.push(
-        `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`
-      );
-    }
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  // Monday-based calendar: Monday = 0, Sunday = 6
+  const startOffset = (firstDay.getDay() + 6) % 7;
+
+  const startDate = new Date(year, month, 1 - startOffset);
+
+  const totalDays = Math.ceil(
+    (startOffset + lastDay.getDate()) / 7
+  ) * 7;
+
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    dates.push(d.toISOString().slice(0, 10));
   }
-
+}
   const activeCases = events.filter(
     e => e.event_type === "surgical_case" &&
          e.event_status !== "cancelled"
@@ -756,7 +796,84 @@ async function loadMasterCalendar() {
   );
 
   const unmatched = activeCases.filter(e => !e.assistant_id);
+if (view === "month") {
+  let html = `
+    <div class="calendar-legend">
+      <span><i class="calendar-available"></i>Available</span>
+      <span><i class="calendar-unavailable"></i>Unavailable</span>
+      <span><i class="calendar-confirmed"></i>Confirmed</span>
+      <span><i class="calendar-pending"></i>Pending</span>
+      <span><i class="calendar-no-availability"></i>Unmatched</span>
+    </div>
 
+    <table class="calendar-table month-calendar">
+      <thead><tr>
+        <th>Monday</th>
+        <th>Tuesday</th>
+        <th>Wednesday</th>
+        <th>Thursday</th>
+        <th>Friday</th>
+        <th>Saturday</th>
+        <th>Sunday</th>
+      </tr></thead>
+      <tbody>
+  `;
+
+  for (let i = 0; i < dates.length; i += 7) {
+    html += "<tr>";
+
+    dates.slice(i, i + 7).forEach(d => {
+      const dayEvents = events.filter(e =>
+        e.event_date === d &&
+        (e.event_type === "availability" ||
+         (e.event_type === "surgical_case" &&
+          e.event_status !== "cancelled"))
+      );
+
+      html += `<td class="calendar-cell">
+        <strong>${Number(d.slice(8, 10))}</strong>`;
+
+      dayEvents.forEach(e => {
+        if (e.event_type === "availability") {
+          const unavailable = e.event_status === "unavailable";
+          const css = unavailable
+            ? "calendar-unavailable"
+            : "calendar-available";
+
+          const assistant = assistants.find(a => a.id === e.assistant_id);
+          const name = assistant?.profile?.full_name || "Assistant";
+
+          html += `<div class="calendar-event ${css}">
+            ${esc(name)}: ${unavailable ? "Unavailable" : "Available"}
+          </div>`;
+        } else {
+          const pending = e.event_status === "invited";
+          const css = !e.assistant_id
+            ? "calendar-no-availability"
+            : pending
+              ? "calendar-pending"
+              : "calendar-confirmed";
+
+          html += `<div class="calendar-event ${css}">
+            ${e.start_time ? esc(e.start_time.slice(0, 5)) : ""}
+            ${esc(e.procedure_name || "Surgical case")}
+            ${e.assistant_name ? " · " + esc(e.assistant_name) : ""}
+          </div>`;
+        }
+      });
+
+      html += "</td>";
+    });
+
+    html += "</tr>";
+  }
+
+  html += "</tbody></table>";
+
+  container.innerHTML = html;
+  return;
+}
+  
   let html = `
     <div class="calendar-legend">
       <span><i class="calendar-available"></i>Available</span>
