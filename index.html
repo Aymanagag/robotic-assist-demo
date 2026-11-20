@@ -537,6 +537,7 @@ document.getElementById("invited").textContent=data.cases.filter(c=>c.status==="
 document.getElementById("confirmed").textContent=data.cases.filter(c=>c.status==="Confirmed").length;
 document.getElementById("unmatchedList").innerHTML=caseList("Unmatched");
 document.getElementById("invitedList").innerHTML=caseList("Invited");
+document.getElementById("confirmedList").innerHTML=caseList("Confirmed");
 document.getElementById("allCases").innerHTML=allCaseList();
 document.getElementById("availabilityOverview").innerHTML=availabilityList();
 renderAssistant();
