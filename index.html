@@ -731,18 +731,23 @@ async function restoreAdminSession() {
 
     if (profileError) throw profileError;
 
-    if (profile.role === "admin") {
-      await loadMasterLists();
-      await loadAssistants();
-      await loadCases();
-      document.getElementById("loginScreen").style.display = "none";
-    } else {
-      await supabaseClient.auth.signOut();
-    }
+   if (profile.role === "admin") {
+  await loadMasterLists();
+  await loadAssistants();
+  await loadCases();
 
-  } catch (error) {
-    console.error("Session restoration error:", error);
-  }
+  document.getElementById("loginScreen").style.display = "none";
+
+} else if (profile.role === "assistant") {
+  await loadAssistants();
+  await loadMyAssistant();
+
+  document.getElementById("loginScreen").style.display = "none";
+
+  await show(
+    "assistant",
+    document.querySelectorAll("nav button")[1]
+  );
 }
 
 restoreAdminSession();
