@@ -533,6 +533,7 @@ document.getElementById("caseForm").addEventListener("submit", async (e) => {
     const { data: caseData, error } = await supabaseClient
       .from("surgical_cases")
       .insert({
+        created_by: (await supabaseClient.auth.getUser()).data.user.id,
         hospital_id: document.getElementById("hospital").value,
         procedure_id: document.getElementById("procedure").value,
         surgeon_id: document.getElementById("surgeon").value,
