@@ -676,6 +676,11 @@ function caseList(status) {
       <button class="action" onclick="editCase('${esc(c.id)}')">
   Edit case
 </button>
+${status !== "Cancelled" ? `
+  <button class="action" onclick="cancelCase('${esc(c.id)}')">
+    Cancel case
+  </button>
+` : ""}
 
       ${
         status === "Unmatched"
@@ -768,7 +773,41 @@ async function invite(id) {
     console.error(error);
   }
 }
+async function cancelCase(id) {
+  try {
+    const reason = prompt("Please enter the reason for cancelling this case:");
 
+    if (reason === null) return;
+
+    if (!reason.trim()) {
+      throw new Error("A cancellation reason is required.");
+    }
+
+    const confirmed = confirm(
+      "Are you sure you want to cancel this case? Any assistant invitation will be withdrawn."
+    );
+
+    if (!confirmed) return;
+
+    const { error } = await supabaseClient.rpc(
+      "cancel_surgical_case",
+      {
+        p_case_id: id,
+        p_reason: reason.trim()
+      }
+    );
+
+    if (error) throw error;
+
+    await loadCases();
+
+    alert("Case cancelled successfully.");
+
+  } catch (error) {
+    alert("Could not cancel case: " + error.message);
+    console.error(error);
+  }
+}
 function allCaseList(){
 if(!data.cases.length)return '<div class="empty">No cases registered yet.</div>';
 return '<div class="tablewrap"><table><tr><th>Case</th><th>Date/time</th><th>Hospital</th><th>Assistant</th><th>Status</th></tr>'+data.cases.map(c=>`<tr><td>${esc(c.procedure)}</td><td>${c.date}<br>${c.start}-${c.finish}</td><td>${esc(c.hospital)}</td><td>${esc(nameOf(c.assistant))}</td><td><span class="tag ${c.status==="Confirmed"?"good":c.status==="Unmatched"?"bad":""}">${c.status}</span></td></tr>`).join("")+'</table></div>';
