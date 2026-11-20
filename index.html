@@ -542,6 +542,11 @@ document.getElementById("allCases").innerHTML=allCaseList();
 document.getElementById("availabilityOverview").innerHTML=availabilityList();
 renderAssistant();
 }
+ function nameOf(id) {
+  let a = data.assistants.find(x => x.id == id);
+  return a ? a.name : "Not assigned";
+}
+
 function caseList(status) {
   const list = data.cases.filter(c => c.status === status);
 
