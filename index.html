@@ -40,6 +40,21 @@ th{color:#63748a}
 .small{font-size:12px;color:#718096}
 hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
 @media(max-width:600px){main{padding:12px}.card{padding:14px}th,td{min-width:95px}}
+ /* Case status colours */
+#unmatchedList .card {
+  background: #FEE2E2;
+  border-left: 5px solid #DC2626;
+}
+
+#invitedList .card {
+  background: #FEF3C7;
+  border-left: 5px solid #D97706;
+}
+
+#confirmedList .card {
+  background: #DCFCE7;
+  border-left: 5px solid #16A34A;
+} 
 </style>
 </head>
 <body>
@@ -159,7 +174,11 @@ padding:20px;
 <h3>Matched — awaiting assistant acceptance</h3>
 <div id="invitedList"></div>
 </div>
-
+  
+<div class="card">
+<h3>Confirmed cases</h3>
+<div id="confirmedList"></div>
+</div>
 <div class="card">
 <h3>Assistant availability overview</h3>
 <div id="availabilityOverview"></div>
