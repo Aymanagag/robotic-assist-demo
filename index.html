@@ -772,6 +772,7 @@ async function restoreAdminSession() {
     } else if (profile.role === "assistant") {
       await loadAssistants();
       await loadMyAssistant();
+      await loadMyInvitations();
       document.getElementById("loginScreen").style.display = "none";
       await show("assistant", document.querySelectorAll("nav button")[1]);
 
