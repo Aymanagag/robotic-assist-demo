@@ -470,19 +470,75 @@ function nameOf(id){let a=data.assistants.find(x=>x.id==id);return a?a.name:"Not
 function available(a,c){
 return a.availability.some(v=>v.date===c.date&&(v.type==="full"||(v.type==="hours"&&v.start<=c.start&&v.finish>=c.finish)));
 }
-function invite(id){
-let c=data.cases.find(x=>x.id===id),aid=document.getElementById("assign"+id).value,a=data.assistants.find(x=>x.id==aid);
-if(!c||!a)return;
-let free=available(a,c);
-let conflicts=data.cases.filter(x=>x.id!==c.id&&x.assistant==aid&&x.date===c.date&&(x.status==="Invited"||x.status==="Confirmed")&&x.start<c.finish&&x.finish>c.start);
-let message=[];
-if(!free)message.push("This assistant has not submitted matching availability for this date and time.");
-if(conflicts.length)message.push("WARNING: This assistant has another allocated case during this time.");
-if(message.length&&!confirm(message.join("\n\n")+"\n\nDo you want to proceed with this allocation?"))return;
-if(conflicts.length&&!confirm("This creates an overlapping allocation. Are you absolutely sure?"))return;
-c.assistant=aid;c.status="Invited";save();
-alert("Invitation sent. The case is now awaiting assistant acceptance.");
+
+async function invite(id) {
+  try {
+    const assistantId = document.getElementById("assign" + id).value;
+
+    if (!assistantId) {
+      throw new Error("Please select an assistant.");
+    }
+
+    const { data: result, error } = await supabaseClient.rpc(
+      "check_assistant_matching",
+      { p_case_id: id }
+    );
+
+    if (error) throw error;
+
+    const match = result.find(
+      a => a.assistant_id === assistantId
+    );
+
+    if (!match) {
+      throw new Error("Assistant matching information was not found.");
+    }
+
+    if (match.booking_conflict) {
+      throw new Error(
+        "This assistant has an overlapping booking. Allocation is not permitted."
+      );
+    }
+
+    let override = false;
+    let reason = null;
+
+    if (!match.availability_match) {
+      override = confirm(
+        "This assistant has not submitted matching availability. " +
+        "Do you want to override this availability warning?"
+      );
+
+      if (!override) return;
+
+      reason = prompt("Please enter the reason for this override.");
+
+      if (!reason || !reason.trim()) {
+        throw new Error("An override reason is required.");
+      }
+    }
+
+    const { error: allocationError } = await supabaseClient.rpc(
+      "allocate_assistant",
+      {
+        p_case_id: id,
+        p_assistant_id: assistantId,
+        p_override_warnings: override,
+        p_override_reason: reason
+      }
+    );
+
+    if (allocationError) throw allocationError;
+
+    await loadCases();
+    alert("Invitation sent. Awaiting assistant acceptance.");
+
+  } catch (error) {
+    alert("Could not allocate assistant: " + error.message);
+    console.error(error);
+  }
 }
+
 function allCaseList(){
 if(!data.cases.length)return '<div class="empty">No cases registered yet.</div>';
 return '<div class="tablewrap"><table><tr><th>Case</th><th>Date/time</th><th>Hospital</th><th>Assistant</th><th>Status</th></tr>'+data.cases.map(c=>`<tr><td>${esc(c.procedure)}</td><td>${c.date}<br>${c.start}-${c.finish}</td><td>${esc(c.hospital)}</td><td>${esc(nameOf(c.assistant))}</td><td><span class="tag ${c.status==="Confirmed"?"good":c.status==="Unmatched"?"bad":""}">${c.status}</span></td></tr>`).join("")+'</table></div>';
