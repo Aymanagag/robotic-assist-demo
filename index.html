@@ -719,6 +719,14 @@ function renderAssistant() {
               <p>Date: ${esc(c.case_date)}</p>
               <p>Time: ${esc(c.start_time)}–${esc(c.finish_time)}</p>
               <p>Status: <strong>${status}</strong></p>
+              ${invitation.status === "pending" ? `
+  <button class="action" onclick="respondToInvitation('${esc(invitation.id)}', 'accepted')">
+    Accept
+  </button>
+  <button class="action" onclick="respondToInvitation('${esc(invitation.id)}', 'declined')">
+    Decline
+  </button>
+` : ""}
             </div>
           `;
         }).join("")
