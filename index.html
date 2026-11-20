@@ -650,32 +650,42 @@ function renderAssistant() {
     a => a.id === currentAssistantId
   );
 
-  if (!assistant) return;
+  if (assistant) {
+    document.getElementById("assistantAccountName").textContent =
+      assistant.name;
 
-  document.getElementById("assistantAccountName").textContent =
-    assistant.name;
+    document.getElementById("myAvailability").innerHTML =
+      assistant.availability.length
+        ? assistant.availability.map(v =>
+            `<p>${esc(v.date)}: <strong>${esc(v.type)}</strong></p>`
+          ).join("")
+        : "<p>No availability submitted yet.</p>";
+  }
 
-  document.getElementById("myAvailability").innerHTML =
-    assistant.availability.length
-      ? assistant.availability.map(v =>
-          `<p>${esc(v.date)}: <strong>${esc(v.type)}</strong></p>`
-        ).join("")
-      : "<p>No availability submitted yet.</p>";
-
-  const cases = data.cases.filter(
-    c => c.assistant === currentAssistantId &&
-    (c.status === "Invited" || c.status === "Confirmed")
-  );
+  const invitations = data.myInvitations || [];
 
   document.getElementById("myInvitations").innerHTML =
-    cases.length
-      ? cases.map(c =>
-          `<div class="card">
-            <strong>${esc(c.procedure)}</strong>
-            <p>${esc(c.hospital)} · ${esc(c.date)} · ${esc(c.start)}–${esc(c.finish)}</p>
-            <p>Status: ${esc(c.status)}</p>
-          </div>`
-        ).join("")
+    invitations.length
+      ? invitations.map(invitation => {
+          const c = invitation.surgical_cases;
+
+          if (!c) return "";
+
+          const status = invitation.status === "pending"
+            ? "Awaiting your response"
+            : "Accepted";
+
+          return `
+            <div class="card">
+              <strong>${esc(c.procedures?.name || "Procedure not specified")}</strong>
+              <p>Hospital: ${esc(c.hospitals?.name || "Not specified")}</p>
+              <p>Surgeon: ${esc(c.surgeons?.name || "Not specified")}</p>
+              <p>Date: ${esc(c.case_date)}</p>
+              <p>Time: ${esc(c.start_time)}–${esc(c.finish_time)}</p>
+              <p>Status: <strong>${status}</strong></p>
+            </div>
+          `;
+        }).join("")
       : "<p>No invitations or assignments.</p>";
 }
 function removeAvailability(aid,date){
