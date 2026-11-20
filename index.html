@@ -352,6 +352,44 @@ async function addMaster(type, inputId) {
   const { error } = await supabaseClient
     .from(table)
     .insert({ name: name });
+ document.getElementById("editCaseForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const button = e.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+
+  try {
+    const start = document.getElementById("editStart").value;
+    const finish = document.getElementById("editFinish").value;
+
+    if (start >= finish) {
+      throw new Error("Finish time must be after start time.");
+    }
+
+    const { error } = await supabaseClient.rpc("update_surgical_case", {
+      p_case_id: document.getElementById("editCaseId").value,
+      p_hospital_id: document.getElementById("editHospital").value,
+      p_procedure_id: document.getElementById("editProcedure").value,
+      p_surgeon_id: document.getElementById("editSurgeon").value,
+      p_case_date: document.getElementById("editDate").value,
+      p_start_time: start,
+      p_finish_time: finish
+    });
+
+    if (error) throw error;
+
+    closeEditCase();
+    alert("Case updated successfully. Any previous assistant invitation has been withdrawn.");
+
+    await loadCases();
+
+  } catch (error) {
+    alert("Could not update case: " + error.message);
+    console.error(error);
+  } finally {
+    button.disabled = false;
+  }
+});
 
   if (error) {
     alert("Could not save: " + error.message);
