@@ -374,6 +374,37 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
   button.disabled = false;
   button.textContent = "Sign in";
 });
+  // RESTORE ADMIN SESSION AFTER PAGE REFRESH
+async function restoreAdminSession() {
+  try {
+    const { data: sessionData, error: sessionError } =
+      await supabaseClient.auth.getSession();
+
+    if (sessionError) throw sessionError;
+
+    if (!sessionData.session) return;
+
+    const { data: profile, error: profileError } =
+      await supabaseClient
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", sessionData.session.user.id)
+        .single();
+
+    if (profileError) throw profileError;
+
+    if (profile.role === "admin") {
+      document.getElementById("loginScreen").style.display = "none";
+    } else {
+      await supabaseClient.auth.signOut();
+    }
+
+  } catch (error) {
+    console.error("Session restoration error:", error);
+  }
+}
+
+restoreAdminSession();
   document.getElementById("caseForm").addEventListener("submit",e=>{
 e.preventDefault();
 let start=document.getElementById("start").value,finish=document.getElementById("finish").value;
