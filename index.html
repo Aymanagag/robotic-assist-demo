@@ -318,6 +318,45 @@ data.surgeons = surgeonsResult.data;
     console.error(error);
   }
 }
+  
+async function loadAssistants() {
+  try {
+    const { data: assistants, error } = await supabaseClient
+      .from("assistants")
+      .select(`
+        id,
+        active,
+        profile:profiles(full_name),
+        availability(
+          availability_date,
+          availability_type,
+          start_time,
+          finish_time
+        )
+      `)
+      .eq("active", true);
+
+    if (error) throw error;
+
+    data.assistants = assistants.map(a => ({
+      id: a.id,
+      name: a.profile?.full_name || "Unnamed assistant",
+      availability: (a.availability || []).map(v => ({
+        date: v.availability_date,
+        type: v.availability_type === "full_day" ? "full" :
+              v.availability_type === "specific_hours" ? "hours" : "unavailable",
+        start: v.start_time,
+        finish: v.finish_time
+      }))
+    }));
+
+    render();
+
+  } catch (error) {
+    alert("Could not load assistants: " + error.message);
+    console.error(error);
+  }
+}
   async function loadCases() {
   try {
     const { data: cases, error } = await supabaseClient
@@ -467,6 +506,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
     }
 
     await loadMasterLists();
+    await loadAssistants();
     await loadCases();
     document.getElementById("loginScreen").style.display = "none";
 
@@ -500,6 +540,7 @@ async function restoreAdminSession() {
 
     if (profile.role === "admin") {
       await loadMasterLists();
+      await loadAssistants();
       await loadCases();
       document.getElementById("loginScreen").style.display = "none";
     } else {
