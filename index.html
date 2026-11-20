@@ -225,9 +225,9 @@ if(!data){
 data={
 ...defaults,
 assistants:[
-{id:1,name:"Dr Ahmed",platforms:["Da Vinci Xi","Da Vinci X"],availability:[]},
-{id:2,name:"Alex Morgan",platforms:["Da Vinci Xi","Hugo"],availability:[]},
-{id:3,name:"Sam Taylor",platforms:["Versius","Da Vinci SP"],availability:[]}
+{id:1,name:"Dr Ahmed",availability:[]},
+{id:2,name:"Alex Morgan",availability:[]},
+{id:3,name:"Sam Taylor",availability:[]}
 ],
 cases:[]
 };
@@ -347,7 +347,6 @@ data.surgeons = surgeonsResult.data;
       hospital: c.hospital?.name || "",
       procedure: c.procedure?.name || "",
       surgeon: c.surgeon?.name || "",
-      platform: ""
     }));
 
     render();
@@ -377,7 +376,7 @@ let list=data.cases.filter(c=>c.status===status);
 if(!list.length)return '<div class="empty">No cases in this section.</div>';
 return list.map(c=>`<div class="card">
 <strong>${esc(c.procedure)}</strong><br><span class="muted">${esc(c.hospital)} · ${esc(c.date)} · ${c.start}-${c.finish}</span>
-<p class="small">Surgeon: ${esc(c.surgeon)} · ${esc(c.platform)}</p>
+<p class="small">Surgeon: ${esc(c.surgeon)}</p>
 ${status==="Unmatched"?`<label>Allocate assistant</label><select id="assign${c.id}">${data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select><button class="action" onclick="invite(${c.id})">Invite assistant</button>`:`<span class="tag">Awaiting acceptance: ${esc(nameOf(c.assistant))}</span>`}
 </div>`).join("");
 }
@@ -388,11 +387,10 @@ return a.availability.some(v=>v.date===c.date&&(v.type==="full"||(v.type==="hour
 function invite(id){
 let c=data.cases.find(x=>x.id===id),aid=document.getElementById("assign"+id).value,a=data.assistants.find(x=>x.id==aid);
 if(!c||!a)return;
-let free=available(a,c),platform=a.platforms.includes(c.platform);
+let free=available(a,c);
 let conflicts=data.cases.filter(x=>x.id!==c.id&&x.assistant==aid&&x.date===c.date&&(x.status==="Invited"||x.status==="Confirmed")&&x.start<c.finish&&x.finish>c.start);
 let message=[];
 if(!free)message.push("This assistant has not submitted matching availability for this date and time.");
-if(!platform)message.push("This assistant has not listed experience with "+c.platform+".");
 if(conflicts.length)message.push("WARNING: This assistant has another allocated case during this time.");
 if(message.length&&!confirm(message.join("\n\n")+"\n\nDo you want to proceed with this allocation?"))return;
 if(conflicts.length&&!confirm("This creates an overlapping allocation. Are you absolutely sure?"))return;
@@ -404,7 +402,7 @@ if(!data.cases.length)return '<div class="empty">No cases registered yet.</div>'
 return '<div class="tablewrap"><table><tr><th>Case</th><th>Date/time</th><th>Hospital</th><th>Assistant</th><th>Status</th></tr>'+data.cases.map(c=>`<tr><td>${esc(c.procedure)}</td><td>${c.date}<br>${c.start}-${c.finish}</td><td>${esc(c.hospital)}</td><td>${esc(nameOf(c.assistant))}</td><td><span class="tag ${c.status==="Confirmed"?"good":c.status==="Unmatched"?"bad":""}">${c.status}</span></td></tr>`).join("")+'</table></div>';
 }
 function availabilityList(){
-return data.assistants.map(a=>`<p><strong>${esc(a.name)}</strong> — ${a.availability.length} availability entries<br><span class="small">Platforms: ${a.platforms.map(esc).join(", ")}</span></p>`).join("<hr>");
+return data.assistants.map(a=>`<p><strong>${esc(a.name)}</strong> — ${a.availability.length} availability entries</p>`).join("<hr>");
 }
 function toggleHours(){document.getElementById("hours").style.display=document.getElementById("availType").value==="hours"?"block":"none"}
 function saveAvailability(){
@@ -423,7 +421,7 @@ let a=data.assistants.find(x=>x.id==id);
 if(!a)return;
 document.getElementById("myAvailability").innerHTML=a.availability.length?a.availability.map(v=>`<p>${v.date}: <strong>${v.type==="full"?"Available all day":v.type==="unavailable"?"Unavailable":v.start+" to "+v.finish}</strong> <button class="danger" onclick="removeAvailability(${a.id},'${v.date}')">Remove</button></p>`).join(""):'<div class="empty">No availability submitted.</div>';
 let cases=data.cases.filter(c=>c.assistant==id&&(c.status==="Invited"||c.status==="Confirmed"));
-document.getElementById("myInvitations").innerHTML=cases.length?cases.map(c=>`<div class="card"><strong>${esc(c.procedure)}</strong><p>${esc(c.hospital)} · ${c.date} · ${c.start}-${c.finish}</p><p class="small">Surgeon: ${esc(c.surgeon)} · ${esc(c.platform)}</p>${c.status==="Invited"?`<button class="action" onclick="respond(${c.id},'Confirmed')">Accept invitation</button><button class="danger" onclick="respond(${c.id},'Declined')">Decline invitation</button>`:'<span class="tag good">Confirmed</span>'}</div>`).join(""):'<div class="empty">No invitations or assignments.</div>';
+document.getElementById("myInvitations").innerHTML=cases.length?cases.map(c=>`<div class="card"><strong>${esc(c.procedure)}</strong><p>${esc(c.hospital)} · ${c.date} · ${c.start}-${c.finish}</p><p class="small">Surgeon: ${esc(c.surgeon)}</p>${c.status==="Invited"?`<button class="action" onclick="respond(${c.id},'Confirmed')">Accept invitation</button><button class="danger" onclick="respond(${c.id},'Declined')">Decline invitation</button>`:'<span class="tag good">Confirmed</span>'}</div>`).join(""):'<div class="empty">No invitations or assignments.</div>';
 }
 function removeAvailability(aid,date){
 let a=data.assistants.find(x=>x.id==aid);a.availability=a.availability.filter(v=>v.date!==date);save();
