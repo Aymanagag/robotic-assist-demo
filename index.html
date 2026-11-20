@@ -241,9 +241,11 @@ document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"))
 btn.classList.add("active");
 render();
 }
-function options(id,items){
-let el=document.getElementById(id);
-el.innerHTML=items.map(x=>`<option>${esc(x)}</option>`).join("");
+function options(id, items) {
+  const el = document.getElementById(id);
+  el.innerHTML = items.map(x =>
+    `<option value="${esc(x.id)}">${esc(x.name)}</option>`
+  ).join("");
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function addMaster(type, inputId) {
@@ -306,14 +308,53 @@ async function loadMasterLists() {
     if (proceduresResult.error) throw proceduresResult.error;
     if (surgeonsResult.error) throw surgeonsResult.error;
 
-    data.hospitals = hospitalsResult.data.map(x => x.name);
-    data.procedures = proceduresResult.data.map(x => x.name);
-    data.surgeons = surgeonsResult.data.map(x => x.name);
+data.hospitals = hospitalsResult.data;
+data.procedures = proceduresResult.data;
+data.surgeons = surgeonsResult.data;
 
     render();
 
   } catch (error) {
     alert("Could not load master lists: " + error.message);
+    console.error(error);
+  }
+}
+  async function loadCases() {
+  try {
+    const { data: cases, error } = await supabaseClient
+      .from("surgical_cases")
+      .select(`
+        id,
+        case_date,
+        start_time,
+        finish_time,
+        status,
+        assistant_id,
+        hospital:hospitals(name),
+        procedure:procedures(name),
+        surgeon:surgeons(name)
+      `)
+      .order("case_date");
+
+    if (error) throw error;
+
+    data.cases = cases.map(c => ({
+      id: c.id,
+      date: c.case_date,
+      start: c.start_time,
+      finish: c.finish_time,
+      status: c.status.charAt(0).toUpperCase() + c.status.slice(1),
+      assistant: c.assistant_id,
+      hospital: c.hospital?.name || "",
+      procedure: c.procedure?.name || "",
+      surgeon: c.surgeon?.name || "",
+      platform: ""
+    }));
+
+    render();
+
+  } catch (error) {
+    alert("Could not load surgical cases: " + error.message);
     console.error(error);
   }
 }
@@ -429,6 +470,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
     }
 
     await loadMasterLists();
+    await loadCases();
     document.getElementById("loginScreen").style.display = "none";
 
     alert("Welcome, " + profile.full_name + ". Administrator login successful.");
@@ -461,6 +503,7 @@ async function restoreAdminSession() {
 
     if (profile.role === "admin") {
       await loadMasterLists();
+      await loadCases();
       document.getElementById("loginScreen").style.display = "none";
     } else {
       await supabaseClient.auth.signOut();
@@ -472,19 +515,49 @@ async function restoreAdminSession() {
 }
 
 restoreAdminSession();
-  document.getElementById("caseForm").addEventListener("submit",e=>{
-e.preventDefault();
-let start=document.getElementById("start").value,finish=document.getElementById("finish").value;
-if(start>=finish)return alert("Finish time must be after start time.");
-data.cases.push({
-id:Date.now(),hospital:document.getElementById("hospital").value,
-procedure:document.getElementById("procedure").value,
-surgeon:document.getElementById("surgeon").value,
-date:document.getElementById("date").value,start,finish,
-platform:document.getElementById("platform").value,
-status:"Unmatched",assistant:null
-});
-e.target.reset();save();alert("Case registered and added to the unmatched queue.");
+document.getElementById("caseForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const button = e.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+
+  try {
+    const start = document.getElementById("start").value;
+    const finish = document.getElementById("finish").value;
+    const date = document.getElementById("date").value;
+
+    if (start >= finish) {
+      throw new Error("Finish time must be after start time.");
+    }
+
+    const { data: caseData, error } = await supabaseClient
+      .from("surgical_cases")
+      .insert({
+        hospital_id: document.getElementById("hospital").value,
+        procedure_id: document.getElementById("procedure").value,
+        surgeon_id: document.getElementById("surgeon").value,
+        case_date: date,
+        start_time: start,
+        finish_time: finish,
+        status: "unmatched"
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    e.target.reset();
+
+    alert("Surgical case saved successfully.");
+
+    await loadCases();
+
+  } catch (error) {
+    alert("Could not register case: " + error.message);
+    console.error(error);
+  } finally {
+    button.disabled = false;
+  }
 });
 render();
 </script>
