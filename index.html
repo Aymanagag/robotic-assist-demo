@@ -562,6 +562,9 @@ function caseList(status) {
         ${esc(c.hospital)} · ${esc(c.date)} · ${esc(c.start)}–${esc(c.finish)}
       </span>
       <p class="small">Surgeon: ${esc(c.surgeon)}</p>
+      <button class="action" onclick="editCase('${esc(c.id)}')">
+  Edit case
+</button>
 
       ${
         status === "Unmatched"
