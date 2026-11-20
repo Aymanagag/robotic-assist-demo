@@ -522,18 +522,44 @@ document.getElementById("allCases").innerHTML=allCaseList();
 document.getElementById("availabilityOverview").innerHTML=availabilityList();
 renderAssistant();
 }
-function caseList(status){
-let list=data.cases.filter(c=>c.status===status);
-if(!list.length)return '<div class="empty">No cases in this section.</div>';
-return list.map(c=>`<div class="card">
-<strong>${esc(c.procedure)}</strong><br><span class="muted">${esc(c.hospital)} · ${esc(c.date)} · ${c.start}-${c.finish}</span>
-<p class="small">Surgeon: ${esc(c.surgeon)}</p>
-${status==="Unmatched"?`<label>Allocate assistant</label><select id="assign${c.id}">${data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select><button class="action" onclick="invite('${esc(c.id)}')">Invite assistant</button>`:`<span class="tag">Awaiting acceptance: ${esc(nameOf(c.assistant))}</span>`}
-</div>`).join("");
-}
-function nameOf(id){let a=data.assistants.find(x=>x.id==id);return a?a.name:"Not assigned"}
-function available(a,c){
-return a.availability.some(v=>v.date===c.date&&(v.type==="full"||(v.type==="hours"&&v.start<=c.start&&v.finish>=c.finish)));
+function caseList(status) {
+  const list = data.cases.filter(c => c.status === status);
+
+  if (!list.length) {
+    return '<div class="empty">No cases in this section.</div>';
+  }
+
+  return list.map(c => `
+    <div class="card">
+      <strong>${esc(c.procedure)}</strong>
+      <br>
+      <span class="muted">
+        ${esc(c.hospital)} · ${esc(c.date)} · ${esc(c.start)}–${esc(c.finish)}
+      </span>
+      <p class="small">Surgeon: ${esc(c.surgeon)}</p>
+
+      ${
+        status === "Unmatched"
+          ? `
+            <label>Allocate assistant</label>
+            <select id="assign${c.id}">
+              ${data.assistants.map(a =>
+                `<option value="${a.id}">${esc(a.name)}</option>`
+              ).join("")}
+            </select>
+            <button class="action" onclick="invite('${esc(c.id)}')">
+              Invite assistant
+            </button>
+          `
+          : `
+            <span class="tag">
+              ${status === "Confirmed" ? "Confirmed assistant: " : "Awaiting acceptance: "}
+              ${esc(nameOf(c.assistant))}
+            </span>
+          `
+      }
+    </div>
+  `).join("");
 }
 
 async function invite(id) {
