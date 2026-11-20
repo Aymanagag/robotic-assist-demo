@@ -169,11 +169,9 @@ padding:20px;
 <section id="assistant" class="panel">
 <h2>Surgical Assistant Portal</h2>
 <div class="card">
-<h3>Select demo assistant</h3>
-<p class="muted">In this prototype, select an assistant to simulate their individual portal. Real accounts and private access will be added in the live application.</p>
-<select id="assistantSelect" onchange="renderAssistant()"></select>
+<h3>Your account</h3>
+<p id="assistantAccountName" class="muted">Loading your account...</p>
 </div>
-
 <div class="card">
 <h3>Submit or update availability</h3>
 <label>Availability date</label><input type="date" id="availDate">
@@ -220,6 +218,7 @@ procedures:["Robotic prostatectomy","Robotic partial nephrectomy","Robotic cyste
 surgeons:["Dr Smith","Mr Jones","Mr Brown"]
 };
 let data;
+  let currentAssistantId = null;
 try{data=JSON.parse(localStorage.getItem("roboticAssistDemo"))}catch(e){}
 if(!data){
 data={
@@ -233,12 +232,40 @@ cases:[]
 };
 }
 function save(){localStorage.setItem("roboticAssistDemo",JSON.stringify(data));render()}
-function show(id,btn){
-document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
-document.getElementById(id).classList.add("active");
-document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
-btn.classList.add("active");
-render();
+async function show(id, btn) {
+  const { data: userData, error: userError } =
+    await supabaseClient.auth.getUser();
+
+  if (userError || !userData.user) return;
+
+  const { data: profile, error: profileError } =
+    await supabaseClient
+      .from("profiles")
+      .select("role")
+      .eq("id", userData.user.id)
+      .single();
+
+  if (profileError) {
+    alert("Could not verify your account permissions.");
+    return;
+  }
+
+  if (profile.role !== "admin" && id !== "assistant") {
+    alert("You are not authorised to access this section.");
+    return;
+  }
+
+  document.querySelectorAll(".panel")
+    .forEach(x => x.classList.remove("active"));
+
+  document.getElementById(id).classList.add("active");
+
+  document.querySelectorAll("nav button")
+    .forEach(x => x.classList.remove("active"));
+
+  btn.classList.add("active");
+
+  render();
 }
 function options(id, items) {
   const el = document.getElementById(id);
@@ -357,6 +384,27 @@ async function loadAssistants() {
     console.error(error);
   }
 }
+async function loadMyAssistant() {
+  const { data: userData, error: userError } =
+    await supabaseClient.auth.getUser();
+
+  if (userError) throw userError;
+  if (!userData.user) throw new Error("Not signed in.");
+
+  const { data: assistant, error } = await supabaseClient
+    .from("assistants")
+    .select("id, profile:profiles(full_name)")
+    .eq("profile_id", userData.user.id)
+    .eq("active", true)
+    .single();
+
+  if (error) throw error;
+
+  currentAssistantId = assistant.id;
+
+  document.getElementById("assistantAccountName").textContent =
+    assistant.profile?.full_name || "Assistant";
+}
   async function loadCases() {
   try {
     const { data: cases, error } = await supabaseClient
@@ -399,7 +447,6 @@ async function loadAssistants() {
 options("hospital",data.hospitals);
 options("procedure",data.procedures);
 options("surgeon",data.surgeons);
-document.getElementById("assistantSelect").innerHTML=data.assistants.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("");
 document.getElementById("total").textContent=data.cases.length;
 document.getElementById("unmatched").textContent=data.cases.filter(c=>c.status==="Unmatched").length;
 document.getElementById("invited").textContent=data.cases.filter(c=>c.status==="Invited").length;
@@ -444,23 +491,104 @@ function availabilityList(){
 return data.assistants.map(a=>`<p><strong>${esc(a.name)}</strong> — ${a.availability.length} availability entries</p>`).join("<hr>");
 }
 function toggleHours(){document.getElementById("hours").style.display=document.getElementById("availType").value==="hours"?"block":"none"}
-function saveAvailability(){
-let a=data.assistants.find(x=>x.id==document.getElementById("assistantSelect").value);
-let date=document.getElementById("availDate").value,type=document.getElementById("availType").value;
-let start=document.getElementById("availStart").value,finish=document.getElementById("availFinish").value;
-if(!date)return alert("Please select a date.");
-if(type==="hours"&&(!start||!finish||start>=finish))return alert("Please enter a valid time window.");
-a.availability=a.availability.filter(x=>x.date!==date);
-a.availability.push({date,type,start,finish});
-save();alert("Availability saved.");
+async function saveAvailability() {
+  try {
+    if (!currentAssistantId) {
+      throw new Error("Your assistant account is not loaded.");
+    }
+
+    const date = document.getElementById("availDate").value;
+    const selectedType = document.getElementById("availType").value;
+    const start = document.getElementById("availStart").value;
+    const finish = document.getElementById("availFinish").value;
+
+    if (!date) throw new Error("Please select a date.");
+
+    if (selectedType === "hours" && (!start || !finish || start >= finish)) {
+      throw new Error("Please enter valid availability hours.");
+    }
+
+    const availabilityType =
+      selectedType === "full" ? "full_day" :
+      selectedType === "hours" ? "specific_hours" :
+      "unavailable";
+
+    const availabilityData = {
+      assistant_id: currentAssistantId,
+      availability_date: date,
+      availability_type: availabilityType,
+      start_time: selectedType === "hours" ? start : null,
+      finish_time: selectedType === "hours" ? finish : null
+    };
+
+    const { data: existing, error: lookupError } = await supabaseClient
+      .from("availability")
+      .select("id")
+      .eq("assistant_id", currentAssistantId)
+      .eq("availability_date", date)
+      .maybeSingle();
+
+    if (lookupError) throw lookupError;
+
+    let result;
+
+    if (existing) {
+      result = await supabaseClient
+        .from("availability")
+        .update(availabilityData)
+        .eq("id", existing.id);
+    } else {
+      result = await supabaseClient
+        .from("availability")
+        .insert(availabilityData);
+    }
+
+    if (result.error) throw result.error;
+
+    await loadAssistants();
+    renderAssistant();
+
+    alert("Availability saved successfully.");
+
+  } catch (error) {
+    alert("Could not save availability: " + error.message);
+    console.error(error);
+  }
 }
-function renderAssistant(){
-let id=document.getElementById("assistantSelect").value;
-let a=data.assistants.find(x=>x.id==id);
-if(!a)return;
-document.getElementById("myAvailability").innerHTML=a.availability.length?a.availability.map(v=>`<p>${v.date}: <strong>${v.type==="full"?"Available all day":v.type==="unavailable"?"Unavailable":v.start+" to "+v.finish}</strong> <button class="danger" onclick="removeAvailability(${a.id},'${v.date}')">Remove</button></p>`).join(""):'<div class="empty">No availability submitted.</div>';
-let cases=data.cases.filter(c=>c.assistant==id&&(c.status==="Invited"||c.status==="Confirmed"));
-document.getElementById("myInvitations").innerHTML=cases.length?cases.map(c=>`<div class="card"><strong>${esc(c.procedure)}</strong><p>${esc(c.hospital)} · ${c.date} · ${c.start}-${c.finish}</p><p class="small">Surgeon: ${esc(c.surgeon)}</p>${c.status==="Invited"?`<button class="action" onclick="respond(${c.id},'Confirmed')">Accept invitation</button><button class="danger" onclick="respond(${c.id},'Declined')">Decline invitation</button>`:'<span class="tag good">Confirmed</span>'}</div>`).join(""):'<div class="empty">No invitations or assignments.</div>';
+function renderAssistant() {
+  if (!currentAssistantId) return;
+
+  const assistant = data.assistants.find(
+    a => a.id === currentAssistantId
+  );
+
+  if (!assistant) return;
+
+  document.getElementById("assistantAccountName").textContent =
+    assistant.name;
+
+  document.getElementById("myAvailability").innerHTML =
+    assistant.availability.length
+      ? assistant.availability.map(v =>
+          `<p>${esc(v.date)}: <strong>${esc(v.type)}</strong></p>`
+        ).join("")
+      : "<p>No availability submitted yet.</p>";
+
+  const cases = data.cases.filter(
+    c => c.assistant === currentAssistantId &&
+    (c.status === "Invited" || c.status === "Confirmed")
+  );
+
+  document.getElementById("myInvitations").innerHTML =
+    cases.length
+      ? cases.map(c =>
+          `<div class="card">
+            <strong>${esc(c.procedure)}</strong>
+            <p>${esc(c.hospital)} · ${esc(c.date)} · ${esc(c.start)}–${esc(c.finish)}</p>
+            <p>Status: ${esc(c.status)}</p>
+          </div>`
+        ).join("")
+      : "<p>No invitations or assignments.</p>";
 }
 function removeAvailability(aid,date){
 let a=data.assistants.find(x=>x.id==aid);a.availability=a.availability.filter(v=>v.date!==date);save();
@@ -500,17 +628,26 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 
     if (profileError) throw profileError;
 
-    if (profile.role !== "admin") {
-      await supabaseClient.auth.signOut();
-      throw new Error("The assistant portal is not connected yet. Please use an administrator account during setup.");
-    }
+   if (profile.role === "admin") {
+  await loadMasterLists();
+  await loadAssistants();
+  await loadCases();
 
-    await loadMasterLists();
-    await loadAssistants();
-    await loadCases();
-    document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("loginScreen").style.display = "none";
+  alert("Welcome, " + profile.full_name + ". Administrator login successful.");
 
-    alert("Welcome, " + profile.full_name + ". Administrator login successful.");
+} else if (profile.role === "assistant") {
+  await loadAssistants();
+  await loadMyAssistant();
+
+  document.getElementById("loginScreen").style.display = "none";
+  await show("assistant", document.querySelectorAll("nav button")[1]);
+
+  alert("Welcome, " + profile.full_name + ". Assistant login successful.");
+
+} else {
+  throw new Error("Your account does not have an authorised role.");
+}
 
   } catch (error) {
     errorBox.textContent = error.message;
