@@ -587,7 +587,38 @@ renderAssistant();
   let a = data.assistants.find(x => x.id == id);
   return a ? a.name : "Not assigned";
 }
+function editCase(id) {
+  const c = data.cases.find(x => x.id === id);
 
+  if (!c) {
+    alert("Case not found.");
+    return;
+  }
+
+  document.getElementById("editCaseId").value = c.id;
+
+  options("editHospital", data.hospitals);
+  options("editProcedure", data.procedures);
+  options("editSurgeon", data.surgeons);
+
+  document.getElementById("editHospital").value = c.hospitalId;
+  document.getElementById("editProcedure").value = c.procedureId;
+  document.getElementById("editSurgeon").value = c.surgeonId;
+  document.getElementById("editDate").value = c.date;
+  document.getElementById("editStart").value = c.start;
+  document.getElementById("editFinish").value = c.finish;
+
+  document.getElementById("editCasePanel").style.display = "block";
+
+  document.getElementById("editCasePanel").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+function closeEditCase() {
+  document.getElementById("editCasePanel").style.display = "none";
+}
 function caseList(status) {
   const list = data.cases.filter(c => c.status === status);
 
