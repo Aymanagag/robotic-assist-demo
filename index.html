@@ -55,6 +55,99 @@ hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
   background: #DCFCE7;
   border-left: 5px solid #16A34A;
 } 
+ /* MASTER RESOURCE CALENDAR */
+
+#masterCalendar {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.calendar-table {
+  width: 100%;
+  min-width: 750px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.calendar-table th,
+.calendar-table td {
+  border: 1px solid #D1D5DB;
+  padding: 10px;
+  text-align: center;
+  vertical-align: top;
+}
+
+.calendar-table th {
+  background: #F3F4F6;
+  font-weight: 600;
+}
+
+.calendar-assistant {
+  min-width: 150px;
+  text-align: left !important;
+  font-weight: 600;
+}
+
+.calendar-cell {
+  min-width: 110px;
+  min-height: 65px;
+}
+
+.calendar-event {
+  display: block;
+  padding: 7px;
+  margin-bottom: 5px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.calendar-available {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.calendar-unavailable {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.calendar-confirmed {
+  background: #2563EB;
+  color: white;
+}
+
+.calendar-pending {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.calendar-no-availability {
+  background: #E5E7EB;
+  color: #374151;
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 15px 0;
+  font-size: 12px;
+}
+
+.calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.calendar-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
 </style>
 </head>
 <body>
@@ -178,6 +271,27 @@ padding:20px;
 <div class="card">
 <h3>Confirmed cases</h3>
 <div id="confirmedList"></div>
+</div>
+ <div class="card">
+  <h3>Master Resource Calendar</h3>
+
+  <div class="grid">
+    <div>
+      <label>Calendar view</label>
+      <select id="calendarView">
+        <option value="week">Week</option>
+        <option value="month">Month</option>
+        <option value="day">Day</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Starting date</label>
+      <input type="date" id="calendarDate">
+    </div>
+  </div>
+
+  <div id="masterCalendar"></div>
 </div>
 <div class="card">
 <h3>Assistant availability overview</h3>
@@ -563,6 +677,180 @@ async function respondToInvitation(invitationId, response) {
     console.error(error);
   }
 }
+ document.getElementById("calendarView").addEventListener("change", loadMasterCalendar);
+document.getElementById("calendarDate").addEventListener("change", loadMasterCalendar);
+ if (!document.getElementById("calendarDate").value) {
+  document.getElementById("calendarDate").value =
+    new Date().toISOString().slice(0, 10);
+}
+async function loadMasterCalendar() {
+  try {
+    const { data: events, error } = await supabaseClient
+      .from("calendar_events")
+      .select("*")
+      .order("event_date")
+      .order("start_time");
+
+    if (error) throw error;
+
+    const { data: assistants, error: assistantError } =
+      await supabaseClient
+        .from("assistants")
+        .select(`
+          id,
+          profile:profiles(full_name)
+        `)
+        .eq("active", true);
+
+    if (assistantError) throw assistantError;
+
+    renderMasterCalendar(events || [], assistants || []);
+
+  } catch (error) {
+    document.getElementById("masterCalendar").innerHTML =
+      `<p class="empty">Could not load calendar: ${esc(error.message)}</p>`;
+    console.error(error);
+  }
+} 
+ function renderMasterCalendar(events, assistants) {
+  const container = document.getElementById("masterCalendar");
+  const selectedDate =
+    document.getElementById("calendarDate").value ||
+    new Date().toISOString().slice(0, 10);
+
+  const view = document.getElementById("calendarView").value;
+
+  const date = new Date(selectedDate + "T12:00:00");
+  let dates = [];
+
+  if (view === "day") {
+    dates = [selectedDate];
+  } else if (view === "week") {
+    const start = new Date(date);
+    start.setDate(date.getDate() - date.getDay() + 1);
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+  } else {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 1; i <= days; i++) {
+      dates.push(
+        `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`
+      );
+    }
+  }
+
+  const activeCases = events.filter(
+    e => e.event_type === "surgical_case" &&
+         e.event_status !== "cancelled"
+  );
+
+  const availability = events.filter(
+    e => e.event_type === "availability"
+  );
+
+  const unmatched = activeCases.filter(e => !e.assistant_id);
+
+  let html = `
+    <div class="calendar-legend">
+      <span><i class="calendar-available"></i>Available</span>
+      <span><i class="calendar-unavailable"></i>Unavailable</span>
+      <span><i class="calendar-confirmed"></i>Confirmed</span>
+      <span><i class="calendar-pending"></i>Pending</span>
+      <span><i class="calendar-no-availability"></i>No availability</span>
+    </div>
+  `;
+
+  if (unmatched.length) {
+    html += `<h4>Unmatched surgical cases</h4>`;
+
+    html += unmatched
+      .filter(e => dates.includes(e.event_date))
+      .map(e => `
+        <div class="calendar-event calendar-no-availability">
+          ${esc(e.event_date)} · ${esc(e.start_time || "")}–${esc(e.finish_time || "")}
+          · ${esc(e.procedure_name)} · ${esc(e.hospital_name)}
+        </div>
+      `).join("");
+  }
+
+  html += `<table class="calendar-table"><thead><tr>
+    <th class="calendar-assistant">Assistant</th>`;
+
+  dates.forEach(d => {
+    html += `<th>${new Date(d + "T12:00:00").toLocaleDateString(
+      "en-US", { weekday: "short", day: "numeric", month: "short" }
+    )}</th>`;
+  });
+
+  html += `</tr></thead><tbody>`;
+
+  assistants.forEach(a => {
+    const assistantName = a.profile?.full_name || "Assistant";
+
+    html += `<tr><td class="calendar-assistant">${esc(assistantName)}</td>`;
+
+    dates.forEach(d => {
+      const dayAvailability = availability.filter(
+        e => e.assistant_id === a.id && e.event_date === d
+      );
+
+      const bookings = activeCases.filter(
+        e => e.assistant_id === a.id && e.event_date === d
+      );
+
+      let cell = "";
+
+      if (dayAvailability.length === 0) {
+        cell += `<div class="calendar-event calendar-no-availability">No availability submitted</div>`;
+      }
+
+      dayAvailability.forEach(e => {
+        const fullDay = e.event_status === "full_day";
+        const unavailable = e.event_status === "unavailable";
+
+        const css = unavailable
+          ? "calendar-unavailable"
+          : "calendar-available";
+
+        const label = unavailable
+          ? "Unavailable"
+          : fullDay
+            ? "Available all day"
+            : `Available ${esc(e.start_time)}–${esc(e.finish_time)}`;
+
+        cell += `<div class="calendar-event ${css}">${label}</div>`;
+      });
+
+      bookings.forEach(e => {
+        const pending = e.event_status === "invited";
+        const css = pending ? "calendar-pending" : "calendar-confirmed";
+
+        cell += `
+          <div class="calendar-event ${css}">
+            ${pending ? "Invitation pending" : "Confirmed"}
+            <br>${esc(e.start_time)}–${esc(e.finish_time)}
+            <br>${esc(e.procedure_name)}
+            <br>${esc(e.hospital_name)}
+          </div>`;
+      });
+
+      html += `<td class="calendar-cell">${cell}</td>`;
+    });
+
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>`;
+
+  container.innerHTML = html;
+}
  async function loadCases() {
   try {
     const { data: cases, error } = await supabaseClient
@@ -601,7 +889,8 @@ async function respondToInvitation(invitationId, response) {
     }));
 
     render();
-
+    await loadMasterCalendar();
+   
   } catch (error) {
     alert("Could not load surgical cases: " + error.message);
     console.error(error);
