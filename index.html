@@ -719,7 +719,6 @@ async function restoreAdminSession() {
       await supabaseClient.auth.getSession();
 
     if (sessionError) throw sessionError;
-
     if (!sessionData.session) return;
 
     const { data: profile, error: profileError } =
@@ -731,25 +730,26 @@ async function restoreAdminSession() {
 
     if (profileError) throw profileError;
 
-   if (profile.role === "admin") {
-  await loadMasterLists();
-  await loadAssistants();
-  await loadCases();
+    if (profile.role === "admin") {
+      await loadMasterLists();
+      await loadAssistants();
+      await loadCases();
+      document.getElementById("loginScreen").style.display = "none";
 
-  document.getElementById("loginScreen").style.display = "none";
+    } else if (profile.role === "assistant") {
+      await loadAssistants();
+      await loadMyAssistant();
+      document.getElementById("loginScreen").style.display = "none";
+      await show("assistant", document.querySelectorAll("nav button")[1]);
 
-} else if (profile.role === "assistant") {
-  await loadAssistants();
-  await loadMyAssistant();
+    } else {
+      await supabaseClient.auth.signOut();
+    }
 
-  document.getElementById("loginScreen").style.display = "none";
-
-  await show(
-    "assistant",
-    document.querySelectorAll("nav button")[1]
-  );
+  } catch (error) {
+    console.error("Session restoration error:", error);
+  }
 }
-
 restoreAdminSession();
 document.getElementById("caseForm").addEventListener("submit", async (e) => {
   e.preventDefault();
