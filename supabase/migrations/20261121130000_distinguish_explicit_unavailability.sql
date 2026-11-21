@@ -10,6 +10,7 @@ returns table (
   assistant_id uuid,
   assistant_name text,
   availability_match boolean,
+  availability_submitted boolean,
   explicitly_unavailable boolean,
   platform_match boolean,
   booking_conflict boolean
@@ -52,6 +53,11 @@ begin
           )
       )
     ) as availability_match,
+    exists (
+      select 1 from public.availability av
+      where av.assistant_id = a.id
+        and av.availability_date = c.case_date
+    ) as availability_submitted,
     exists (
       select 1 from public.availability av
       where av.assistant_id = a.id
@@ -195,6 +201,11 @@ begin
     jsonb_build_object(
       'assistant_id', p_assistant_id,
       'availability_match', v_availability_match,
+      'availability_submitted', exists (
+        select 1 from public.availability av
+        where av.assistant_id = p_assistant_id
+          and av.availability_date = v_case.case_date
+      ),
       'explicitly_unavailable', v_explicitly_unavailable,
       'platform_match', v_platform_match,
       'availability_override', not v_availability_match,
