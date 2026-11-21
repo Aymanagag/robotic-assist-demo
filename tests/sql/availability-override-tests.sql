@@ -132,3 +132,19 @@ end;
 $$;
 
 select 'PASS: availability override SQL behaviour tests completed' as test_result;
+
+-- Both RPCs must reject a non-administrator, even when called by an authenticated user.
+set test.is_admin = 'false';
+
+select pg_temp.expect_error(
+  $stmt$select * from public.check_assistant_matching('20000000-0000-0000-0000-000000000015')$stmt$,
+  'Administrator access required'
+);
+
+select pg_temp.expect_error(
+  $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000015','10000000-0000-0000-0000-000000000015',true,'Non-admin must be rejected')$stmt$,
+  'Administrator access required'
+);
+
+set test.is_admin = 'true';
+select 'PASS: administrator access checks completed' as test_result;
