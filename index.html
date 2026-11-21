@@ -760,20 +760,28 @@ async function loadMasterCalendar() {
   }
 } 
 let calendarPreviousView = "week";
+let calendarPreviousDate = "";
 
 function openCalendarDay(day) {
   const currentView = document.getElementById("calendarView").value;
   if (currentView === "week" || currentView === "month") {
     calendarPreviousView = currentView;
+    calendarPreviousDate = document.getElementById("calendarDate").value;
   }
   document.getElementById("calendarDate").value = day;
   document.getElementById("calendarView").value = "day";
   loadMasterCalendar();
 }
 
-function returnToCalendarOverview() {
+function returnToCalendarOverview(targetView) {
+  const viewToRestore = targetView === "month" || targetView === "week"
+    ? targetView
+    : calendarPreviousView;
   document.getElementById("calendarView").value =
-    calendarPreviousView === "month" ? "month" : "week";
+    viewToRestore === "month" ? "month" : "week";
+  if (calendarPreviousDate) {
+    document.getElementById("calendarDate").value = calendarPreviousDate;
+  }
   loadMasterCalendar();
 }
 
@@ -847,7 +855,7 @@ function calendarDateLabel(day, options) {
 
     let dayHtml = `
       <div class="day-view-toolbar">
-        <button type="button" class="secondary" onclick="returnToCalendarOverview()">
+        <button type="button" class="secondary" onclick="returnToCalendarOverview('${calendarPreviousView}')">
           ← Back to ${calendarPreviousView === "month" ? "Month" : "Week"}
         </button>
         <h3>${calendarDateLabel(selectedDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h3>
