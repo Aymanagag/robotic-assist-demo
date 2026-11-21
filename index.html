@@ -796,7 +796,8 @@ function calendarDateLabel(day, options) {
     dates = [selectedDate];
   } else if (view === "week") {
     const start = new Date(date);
-    const mondayOffset = (date.getDay() + 6) % 7;\n    start.setDate(date.getDate() - mondayOffset);
+    const mondayOffset = (date.getDay() + 6) % 7;
+    start.setDate(date.getDate() - mondayOffset);
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
