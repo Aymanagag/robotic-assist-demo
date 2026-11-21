@@ -40,6 +40,11 @@ th{color:#63748a}
 .small{font-size:12px;color:#718096}
 hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
 @media(max-width:600px){main{padding:12px}.card{padding:14px}th,td{min-width:95px}}
+.header-account{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #ffffff30}
+.header-account-name{font-size:13px;color:#e2eaf5;overflow-wrap:anywhere}
+.header-account-name strong{color:#fff}
+.header-account button{margin:0;background:#ffffff18;color:#fff;border:1px solid #ffffff70;border-radius:7px;padding:8px 12px;font-weight:bold;cursor:pointer}
+.header-account button:disabled{opacity:.6;cursor:wait}
  /* Case status colours */
 #unmatchedList .card {
   background: #FEE2E2;
@@ -260,6 +265,10 @@ padding:20px;
 <header>
 <h1>🤖 Robotic Assist</h1>
 <p>Surgical Assistant Availability & Case Allocation</p>
+<div id="headerAccount" class="header-account" style="display:none;">
+  <span class="header-account-name">Signed in as <strong id="headerAccountName"></strong></span>
+  <button id="signOutButton" type="button" onclick="signOutUser()">Sign out</button>
+</div>
 </header>
 <nav>
 <button class="active" onclick="show('admin',this)">Administrator</button>
@@ -1475,6 +1484,32 @@ if(response==="Declined"){c.status="Unmatched";c.assistant=null;}
 else c.status="Confirmed";
 save();alert(response==="Confirmed"?"Booking confirmed.":"Invitation declined. Case returned to unmatched queue.");
 }
+// AUTHENTICATED ACCOUNT DISPLAY AND SIGN OUT
+function updateAccountDisplay(name) {
+  const account = document.getElementById("headerAccount");
+  const nameElement = document.getElementById("headerAccountName");
+  nameElement.textContent = name || "Account";
+  account.style.display = "flex";
+}
+
+async function signOutUser() {
+  const button = document.getElementById("signOutButton");
+  if (!confirm("Are you sure you want to sign out?")) return;
+
+  button.disabled = true;
+  button.textContent = "Signing out...";
+
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
+    window.location.reload();
+  } catch (error) {
+    alert("Could not sign out: " + error.message);
+    button.disabled = false;
+    button.textContent = "Sign out";
+  }
+}
+
 // SUPABASE AUTHENTICATION
 document.getElementById("loginForm").addEventListener("submit", async function(e) {
   e.preventDefault();
@@ -1503,6 +1538,8 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
         .single();
 
     if (profileError) throw profileError;
+
+    updateAccountDisplay(profile.full_name || loginData.user.email);
 
    if (profile.role === "admin") {
   await loadMasterLists();
@@ -1550,6 +1587,8 @@ async function restoreAdminSession() {
         .single();
 
     if (profileError) throw profileError;
+
+    updateAccountDisplay(profile.full_name || sessionData.session.user.email);
 
 if (profile.role === "admin") {
   await loadMasterLists();
