@@ -1,0 +1,43 @@
+name: Availability override SQL tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'tests/sql/**'
+      - '.github/workflows/availability-override-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  postgres-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: robotic_assist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d robotic_assist_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Create synthetic schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d robotic_assist_test -v ON_ERROR_STOP=1 -f tests/sql/availability-override-fixture.sql
+      - name: Apply proposed migration to disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d robotic_assist_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261121130000_distinguish_explicit_unavailability.sql
+      - name: Run allocation behaviour tests
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d robotic_assist_test -v ON_ERROR_STOP=1 -f tests/sql/availability-override-tests.sql
