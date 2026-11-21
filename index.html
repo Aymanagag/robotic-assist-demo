@@ -1281,14 +1281,29 @@ async function invite(id) {
     let reason = null;
 
     if (!match.availability_match) {
-      override = confirm(
-        "This assistant has not submitted matching availability. " +
-        "Do you want to override this availability warning?"
-      );
+      const warningMessage = match.explicitly_unavailable
+        ? "IMPORTANT: This assistant has explicitly marked themselves UNAVAILABLE on this date. " +
+          "Assigning them would override their stated unavailability. " +
+          "Only proceed if you have checked with the assistant and have a valid operational reason. " +
+          "Do you want to continue?"
+        : match.availability_submitted
+          ? "This assistant submitted availability, but it does not cover the full case time. " +
+            "The case may fall partly or wholly outside the hours they offered. " +
+            "Do you want to continue with an override?"
+          : "This assistant has not submitted availability for this date. " +
+            "Their availability is unconfirmed. Do you want to continue with an override?";
+
+      override = confirm(warningMessage);
 
       if (!override) return;
 
-      reason = prompt("Please enter the reason for this override.");
+      reason = prompt(
+        match.explicitly_unavailable
+          ? "Record why you are overriding the assistant's explicit unavailability:"
+          : match.availability_submitted
+            ? "Record why you are proceeding despite the submitted hours not covering the full case:"
+            : "Record why you are proceeding without submitted availability:"
+      );
 
       if (!reason || !reason.trim()) {
         throw new Error("An override reason is required.");
