@@ -1,3 +1,4 @@
+# Isolated PostgreSQL behaviour and authorization checks; never connects to Supabase.
 name: Availability override SQL tests
 
 on:
