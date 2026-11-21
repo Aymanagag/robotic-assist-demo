@@ -178,6 +178,23 @@ hr{border:0;border-top:1px solid #e8edf3;margin:15px 0}
   padding: 4px;
   margin-bottom: 3px;
 }
+
+.calendar-day-link{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px;border:0;background:transparent;color:var(--blue);padding:4px 2px;cursor:pointer;font:inherit;text-align:left}
+.calendar-day-link span{font-size:10px;font-weight:normal;text-decoration:underline}
+.calendar-week-day-link{align-items:center;width:100%;text-align:center}
+.day-view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0 18px}
+.day-view-toolbar h3{margin:0}
+.day-case-card{background:#fff;border:1px solid #dce4ef;border-radius:10px;padding:14px;margin:10px 0;box-shadow:0 1px 4px #172b4a0c}
+.day-case-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.day-case-card h4{margin:10px 0}
+.day-case-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0}
+.day-case-details div{min-width:0}
+.day-case-details dt{font-size:11px;color:#64748b;margin-bottom:3px}
+.day-case-details dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.day-availability-list{display:grid;gap:8px}
+.day-availability-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #dce4ef;border-radius:8px;padding:11px}
+@media(max-width:600px){.day-view-toolbar{align-items:flex-start}.day-case-card{padding:12px}.day-case-details{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
@@ -742,6 +759,36 @@ async function loadMasterCalendar() {
     console.error(error);
   }
 } 
+let calendarPreviousView = "week";
+let calendarPreviousDate = "";
+
+function openCalendarDay(day) {
+  const currentView = document.getElementById("calendarView").value;
+  if (currentView === "week" || currentView === "month") {
+    calendarPreviousView = currentView;
+    calendarPreviousDate = document.getElementById("calendarDate").value;
+  }
+  document.getElementById("calendarDate").value = day;
+  document.getElementById("calendarView").value = "day";
+  loadMasterCalendar();
+}
+
+function returnToCalendarOverview(targetView) {
+  const viewToRestore = targetView === "month" || targetView === "week"
+    ? targetView
+    : calendarPreviousView;
+  document.getElementById("calendarView").value =
+    viewToRestore === "month" ? "month" : "week";
+  if (calendarPreviousDate) {
+    document.getElementById("calendarDate").value = calendarPreviousDate;
+  }
+  loadMasterCalendar();
+}
+
+function calendarDateLabel(day, options) {
+  return new Date(day + "T12:00:00").toLocaleDateString("en-GB", options);
+}
+
  function renderMasterCalendar(events, assistants) {
   const container = document.getElementById("masterCalendar");
   const selectedDate =
@@ -757,12 +804,13 @@ async function loadMasterCalendar() {
     dates = [selectedDate];
   } else if (view === "week") {
     const start = new Date(date);
-    start.setDate(date.getDate() - date.getDay() + 1);
+    const mondayOffset = (date.getDay() + 6) % 7;
+    start.setDate(date.getDate() - mondayOffset);
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      dates.push(d.toISOString().slice(0, 10));
+      dates.push([d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-"));
     }
 } else {
   const year = date.getFullYear();
@@ -783,7 +831,7 @@ async function loadMasterCalendar() {
   for (let i = 0; i < totalDays; i++) {
     const d = new Date(startDate);
     d.setDate(startDate.getDate() + i);
-    dates.push(d.toISOString().slice(0, 10));
+    dates.push([d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-"));
   }
 }
   const activeCases = events.filter(
@@ -796,6 +844,77 @@ async function loadMasterCalendar() {
   );
 
   const unmatched = activeCases.filter(e => !e.assistant_id);
+
+  if (view === "day") {
+    const dayCases = events
+      .filter(e => e.event_type === "surgical_case" && e.event_date === selectedDate)
+      .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+    const dayAvailability = availability
+      .filter(e => e.event_date === selectedDate)
+      .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+
+    let dayHtml = `
+      <div class="day-view-toolbar">
+        <button type="button" class="secondary" onclick="returnToCalendarOverview('${calendarPreviousView}')">
+          ← Back to ${calendarPreviousView === "month" ? "Month" : "Week"}
+        </button>
+        <h3>${calendarDateLabel(selectedDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h3>
+      </div>
+      <h4>Surgical cases (${dayCases.length})</h4>`;
+
+    if (!dayCases.length) {
+      dayHtml += `<p class="empty">No surgical cases are booked for this date.</p>`;
+    } else {
+      dayCases.forEach(e => {
+        const status = (e.event_status || "unknown").replace(/_/g, " ");
+        const statusClass = e.event_status === "cancelled"
+          ? "calendar-unavailable"
+          : e.event_status === "invited"
+            ? "calendar-pending"
+            : e.event_status === "confirmed"
+              ? "calendar-confirmed"
+              : "calendar-no-availability";
+        dayHtml += `
+          <div class="day-case-card">
+            <div class="day-case-heading">
+              <strong>${esc(e.start_time ? e.start_time.slice(0, 5) : "Time not set")}–${esc(e.finish_time ? e.finish_time.slice(0, 5) : "—")}</strong>
+              <span class="calendar-event ${statusClass}">${esc(status)}</span>
+            </div>
+            <h4>${esc(e.procedure_name || "Surgical case")}</h4>
+            <dl class="day-case-details">
+              <div><dt>Hospital</dt><dd>${esc(e.hospital_name || "Not specified")}</dd></div>
+              <div><dt>Surgeon</dt><dd>${esc(e.surgeon_name || "Not specified")}</dd></div>
+              <div><dt>Assistant</dt><dd>${esc(e.assistant_name || "Not assigned")}</dd></div>
+              <div><dt>Booking status</dt><dd>${esc(status)}</dd></div>
+            </dl>
+          </div>`;
+      });
+    }
+
+    dayHtml += `<h4>Assistant availability (${dayAvailability.length} records)</h4>`;
+    if (!dayAvailability.length) {
+      dayHtml += `<p class="empty">No assistant availability has been submitted for this date.</p>`;
+    } else {
+      dayHtml += `<div class="day-availability-list">`;
+      dayAvailability.forEach(e => {
+        const assistant = assistants.find(a => a.id === e.assistant_id);
+        const assistantName = assistant?.profile?.full_name || e.assistant_name || "Assistant";
+        const type = (e.event_status || "availability").replace(/_/g, " ");
+        const unavailable = e.event_status === "unavailable";
+        dayHtml += `
+          <div class="day-availability-item">
+            <strong>${esc(assistantName)}</strong>
+            <span class="calendar-event ${unavailable ? "calendar-unavailable" : "calendar-available"}">${esc(type)}</span>
+            <span>${unavailable ? "Not available" : e.start_time && e.finish_time ? esc(e.start_time.slice(0, 5) + "–" + e.finish_time.slice(0, 5)) : "Available all day"}</span>
+          </div>`;
+      });
+      dayHtml += `</div>`;
+    }
+
+    container.innerHTML = dayHtml;
+    return;
+  }
+
 if (view === "month") {
   let html = `
     <div class="calendar-legend">
@@ -831,7 +950,10 @@ if (view === "month") {
       );
 
       html += `<td class="calendar-cell">
-        <strong>${Number(d.slice(8, 10))}</strong>`;
+        <button type="button" class="calendar-day-link" onclick="openCalendarDay('${d}')">
+          <strong>${Number(d.slice(8, 10))}</strong>
+          <span>View day</span>
+        </button>`;
 
       dayEvents.forEach(e => {
         if (e.event_type === "availability") {
@@ -901,9 +1023,14 @@ if (view === "month") {
     <th class="calendar-assistant">Assistant</th>`;
 
   dates.forEach(d => {
-    html += `<th>${new Date(d + "T12:00:00").toLocaleDateString(
-      "en-US", { weekday: "short", day: "numeric", month: "short" }
-    )}</th>`;
+    html += `<th>
+      <button type="button" class="calendar-day-link calendar-week-day-link" onclick="openCalendarDay('${d}')">
+        ${new Date(d + "T12:00:00").toLocaleDateString(
+          "en-GB", { weekday: "short", day: "numeric", month: "short" }
+        )}
+        <span>View day</span>
+      </button>
+    </th>`;
   });
 
   html += `</tr></thead><tbody>`;
