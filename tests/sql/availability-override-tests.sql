@@ -87,11 +87,11 @@ begin
   perform pg_temp.assert_true(v_match.availability_submitted, 'unavailable entry counts as submitted');
   perform pg_temp.assert_true(v_match.explicitly_unavailable, 'explicit unavailability is identified');
   perform pg_temp.expect_error(
-    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000012','10000000-0000-0000-0000-000000000012',false,null)$$,
+    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000012','10000000-0000-0000-0000-000000000012',false,null)$stmt$,
     'Explicit acknowledgement'
   );
   perform pg_temp.expect_error(
-    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000012','10000000-0000-0000-0000-000000000012',true,' ')$$,
+    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000012','10000000-0000-0000-0000-000000000012',true,' ')$stmt$,
     'explanation is required'
   );
   v_invitation := public.allocate_assistant('20000000-0000-0000-0000-000000000012', '10000000-0000-0000-0000-000000000012', true, 'Operational cover agreed with assistant');
@@ -107,7 +107,7 @@ begin
   perform pg_temp.assert_true(not v_match.availability_submitted, 'missing availability is not submitted');
   perform pg_temp.assert_true(not v_match.explicitly_unavailable, 'missing availability is not explicit unavailability');
   perform pg_temp.expect_error(
-    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000013','10000000-0000-0000-0000-000000000013',true,null)$$,
+    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000013','10000000-0000-0000-0000-000000000013',true,null)$stmt$,
     'explanation is required'
   );
   perform public.allocate_assistant('20000000-0000-0000-0000-000000000013', '10000000-0000-0000-0000-000000000013', true, 'No response received');
@@ -125,7 +125,7 @@ begin
   where assistant_id = '10000000-0000-0000-0000-000000000015';
   perform pg_temp.assert_true(v_match.booking_conflict, 'overlapping booking is detected');
   perform pg_temp.expect_error(
-    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000015','10000000-0000-0000-0000-000000000015',true,'Must remain blocked')$$,
+    $stmt$select public.allocate_assistant('20000000-0000-0000-0000-000000000015','10000000-0000-0000-0000-000000000015',true,'Must remain blocked')$stmt$,
     'Booking conflict'
   );
 end;
